@@ -33,6 +33,9 @@ import (
 
 func (r *TerraformReconciler) reconcile(ctx context.Context, runnerClient runner.RunnerClient, terraform infrav1.Terraform, sourceObj sourcev1.Source, reconciliationLoopID string) (*infrav1.Terraform, error) {
 	log := ctrl.LoggerFrom(ctx)
+	ctx, span := tracer.Start(ctx, "tf_controller_reconcile.reconcile")
+	defer span.End()
+
 	revision := sourceObj.GetArtifact().Revision
 	objectKey := types.NamespacedName{Namespace: terraform.Namespace, Name: terraform.Name}
 

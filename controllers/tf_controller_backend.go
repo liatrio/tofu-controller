@@ -26,6 +26,8 @@ func (r *TerraformReconciler) backendCompletelyDisable(terraform infrav1.Terrafo
 
 func (r *TerraformReconciler) setupTerraform(ctx context.Context, runnerClient runner.RunnerClient, terraform infrav1.Terraform, sourceObj sourcev1.Source, revision string, objectKey types.NamespacedName, reconciliationLoopID string) (infrav1.Terraform, string, string, error) {
 	log := ctrl.LoggerFrom(ctx)
+	ctx, span := tracer.Start(ctx, "tf_controller_backend.setupTerraform")
+	defer span.End()
 
 	tfInstance := "0"
 	tmpDir := ""

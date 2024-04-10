@@ -46,6 +46,9 @@ func (r *TerraformReconciler) apply(ctx context.Context, terraform infrav1.Terra
 		TFPlanName = "tfplan"
 	)
 
+	ctx, span := tracer.Start(ctx, "tf_controller_apply.apply")
+	defer span.End()
+
 	log := ctrl.LoggerFrom(ctx)
 	objectKey := types.NamespacedName{Namespace: terraform.Namespace, Name: terraform.Name}
 

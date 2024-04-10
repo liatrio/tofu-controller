@@ -1,0 +1,13 @@
+apiVersion: infra.contrib.fluxcd.io/v1alpha2
+kind: Terraform
+metadata:
+  name: test
+  namespace: flux-system
+spec:
+  path: ./null/
+  interval: 1m
+  approvePlan: auto
+  destroyResourcesOnDeletion: true
+  sourceRef:
+    kind: GitRepository
+    name: test

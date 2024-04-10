@@ -42,6 +42,14 @@ import (
 	sourcev1b2 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-retryablehttp"
+	"go.opentelemetry.io/contrib/exporters/autoexport"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
@@ -84,6 +92,8 @@ type TerraformReconciler struct {
 	UsePodSubdomainResolution bool
 }
 
+var tracer trace.Tracer
+
 //+kubebuilder:rbac:groups=infra.contrib.fluxcd.io,resources=terraforms,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=infra.contrib.fluxcd.io,resources=terraforms/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=infra.contrib.fluxcd.io,resources=terraforms/finalizers,verbs=get;create;update;patch;delete
@@ -108,6 +118,50 @@ func (r *TerraformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	ctx = ctrl.LoggerInto(ctx, log)
 	traceLog := log.V(logger.TraceLevel).WithValues("function", "TerraformReconciler.Reconcile")
 	traceLog.Info("Reconcile Start")
+
+	otelResource := resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String("OpenTofu Controller"),
+	)
+
+	// If the environment variable was set to explicitly enable telemetry
+	// then we'll enable it, using the "autoexport" library to automatically
+	// handle the details based on the other OpenTelemetry standard environment
+	// variables.
+	exp, err := autoexport.NewSpanExporter(ctx)
+	if err != nil {
+		log.Error(err, "failed to create span exporter")
+	}
+	sp := sdktrace.NewSimpleSpanProcessor(exp)
+	provider := sdktrace.NewTracerProvider(
+		sdktrace.WithSpanProcessor(sp),
+		sdktrace.WithResource(otelResource),
+	)
+	otel.SetTracerProvider(provider)
+	pgtr := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
+	otel.SetTextMapPropagator(pgtr)
+	var otelSpan trace.Span
+	tracer = otel.Tracer("github.com/flux-iac/tofu-controller")
+	// At minimum we emit a span covering the entire command execution.
+	ctx, otelSpan = tracer.Start(context.Background(), "OpenTofu Controller")
+	defer otelSpan.End()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().HasTraceID() {
+		traceID := span.SpanContext().TraceID()
+		spanID := span.SpanContext().SpanID()
+
+		// Build the TRACEPARENT string
+		traceparent := fmt.Sprintf("00-%s-%s-01", traceID.String(), spanID.String())
+
+		// Set the TRACEPARENT as an environment variable
+		os.Setenv("TRACEPARENT", traceparent)
+
+		// Print the TRACEPARENT value
+		fmt.Println("TRACEPARENT:", traceparent)
+	} else {
+		fmt.Println("No trace information found in the context")
+	}
 
 	<-r.CertRotator.Ready
 
@@ -158,6 +212,7 @@ func (r *TerraformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	traceLog.Info("Check if the Terraform resource is suspened")
 	if terraform.Spec.Suspend {
 		log.Info("Reconciliation is suspended for this object")
+		otelSpan.End()
 		return ctrl.Result{}, nil
 	}
 
@@ -175,6 +230,7 @@ func (r *TerraformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			terraform = infrav1.TerraformNotReady(terraform, "", infrav1.DeletionBlockedByDependants, msg)
 			if err := r.patchStatus(ctx, req.NamespacedName, terraform.Status); err != nil {
 				log.Error(err, "unable to update status")
+				otelSpan.End()
 				return ctrl.Result{Requeue: true}, err
 			}
 
@@ -187,6 +243,7 @@ func (r *TerraformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	sourceObj, err := r.getSource(ctx, terraform)
 	traceLog.Info("Did we get an error trying to get the source")
 	if err != nil {
+		otelSpan.End()
 		traceLog.Info("Is the error a NotFound error")
 		if apierrors.IsNotFound(err) {
 			traceLog.Info("The Source was not found")
@@ -202,6 +259,7 @@ func (r *TerraformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			// do not requeue immediately, when the source is created the watcher should trigger a reconciliation
 			return ctrl.Result{RequeueAfter: terraform.GetRetryInterval()}, nil
 		} else if acl.IsAccessDenied(err) {
+			otelSpan.End()
 			traceLog.Info("The cross-namespace Source was denied by reconciler.NoCrossNamespaceRefs")
 			msg := fmt.Sprintf("Source '%s' access denied", terraform.Spec.SourceRef.String())
 			terraform = infrav1.TerraformNotReady(terraform, "", infrav1.AccessDeniedReason, msg)
@@ -215,6 +273,7 @@ func (r *TerraformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			// don't requeue to retry; it won't succeed unless the sourceRef changes
 			return ctrl.Result{}, nil
 		} else {
+			otelSpan.End()
 			// retry on transient errors
 			log.Error(err, "retry")
 			return ctrl.Result{Requeue: true}, err
@@ -246,6 +305,7 @@ func (r *TerraformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				terraform = infrav1.TerraformNotReady(terraform, sourceObj.GetArtifact().Revision, infrav1.AccessDeniedReason, err.Error())
 				if err := r.patchStatus(ctx, req.NamespacedName, terraform.Status); err != nil {
 					log.Error(err, "unable to update status for dependsOn access denied")
+					otelSpan.End()
 					return ctrl.Result{Requeue: true}, err
 				}
 
@@ -260,6 +320,7 @@ func (r *TerraformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 			if err := r.patchStatus(ctx, req.NamespacedName, terraform.Status); err != nil {
 				log.Error(err, "unable to update status for dependency not ready")
+				otelSpan.End()
 				return ctrl.Result{Requeue: true}, err
 			}
 			// we can't rely on exponential backoff because it will prolong the execution too much,
@@ -289,6 +350,7 @@ func (r *TerraformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		terraform = infrav1.TerraformProgressing(terraform, msg)
 		if err := r.patchStatus(ctx, req.NamespacedName, terraform.Status); err != nil {
 			log.Error(err, "unable to update status before Terraform initialization")
+			otelSpan.End()
 			return ctrl.Result{Requeue: true}, err
 		}
 		log.Info("before lookup runner: updated status", "ready", ready)
@@ -303,6 +365,7 @@ func (r *TerraformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		terraform = infrav1.TerraformResetRetry(terraform)
 		if err := r.patchStatus(ctx, req.NamespacedName, terraform.Status); err != nil {
 			log.Error(err, "unable to update status after planning")
+			otelSpan.End()
 			return ctrl.Result{Requeue: true}, err
 		}
 	}
@@ -363,6 +426,9 @@ func (r *TerraformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				log.Error(err, "unable to close connection")
 			}
 		}
+		otelSpan.SetStatus(codes.Error, "lookup/creater runner failed")
+		otelSpan.RecordError(err)
+		otelSpan.End()
 		return ctrl.Result{}, err
 	}
 	log.Info("runner is running")
@@ -712,6 +778,9 @@ func (r *TerraformReconciler) requestsForRevisionChangeOf(indexKey string) handl
 }
 
 func (r *TerraformReconciler) getSource(ctx context.Context, terraform infrav1.Terraform) (sourcev1.Source, error) {
+	ctx, span := tracer.Start(ctx, "tf_controller.getSource")
+	defer span.End()
+
 	var sourceObj sourcev1.Source
 	sourceNamespace := terraform.GetNamespace()
 	if terraform.Spec.SourceRef.Namespace != "" {

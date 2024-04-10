@@ -247,6 +247,18 @@ func main() {
 			Client: mgr.GetClient(),
 			Scheme: mgr.GetScheme(),
 		}
+		//trying to get the runner server to use the same env vars as the controller to export traces
+		// _, err := runnerServer.SetEnv(context.Background(), &runner.SetEnvRequest{
+		// 	Envs: map[string]string{
+		// 		"OTEL_TRACES_EXPORTER":        "otlp",
+		// 		"OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+		// 		"OTEL_EXPORTER_OTLP_ENDPOINT": "http://0.0.0.0:4317",
+		// 	},
+		// })
+		// if err != nil {
+		// 	setupLog.Error(err, "unable to set env vars for runner server")
+		// 	os.Exit(1)
+		// }
 		go func() {
 			err := mtls.StartGRPCServerForTesting(runnerServer, "flux-system", "localhost:30000", mgr, rotator)
 			if err != nil {
