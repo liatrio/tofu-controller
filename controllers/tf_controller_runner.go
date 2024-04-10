@@ -193,7 +193,7 @@ func (r *TerraformReconciler) runnerPodSpec(terraform infrav1.Terraform, tlsSecr
 		},
 	}
 
-	for _, envName := range []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "TRACEPARENT"} {
+	for _, envName := range []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"} {
 		if envValue := os.Getenv(envName); envValue != "" {
 			envvarsMap[envName] = v1.EnvVar{
 				Name:  envName,
@@ -202,13 +202,11 @@ func (r *TerraformReconciler) runnerPodSpec(terraform infrav1.Terraform, tlsSecr
 		}
 	}
 
-	// random env to see propagation more easily
-	for _, envName := range []string{"ZZZZZZZZZZZZZZZZZZZZZ"} {
-		if envValue := os.Getenv(envName); envValue != "" {
-			envvarsMap[envName] = v1.EnvVar{
-				Name:  envName,
-				Value: envValue,
-			}
+	//adding traceparent env to runner
+	if envValue := os.Getenv("TRACEPARENT"); envValue != "" {
+		envvarsMap["TRACEPARENT"] = v1.EnvVar{
+			Name:  "TRACEPARENT",
+			Value: envValue,
 		}
 	}
 
@@ -339,22 +337,6 @@ func (r *TerraformReconciler) reconcileRunnerPod(ctx context.Context, terraform 
 	// defer span.End()
 	ctx, span := tracer.Start(ctx, "reconcileRunnerPod")
 	defer span.End()
-
-	if span.SpanContext().HasTraceID() {
-		traceID := span.SpanContext().TraceID()
-		spanID := span.SpanContext().SpanID()
-
-		// Build the TRACEPARENT string
-		traceparent := fmt.Sprintf("00-%s-%s-01", traceID.String(), spanID.String())
-
-		// Set the TRACEPARENT as an environment variable
-		os.Setenv("TRACEPARENT", traceparent)
-
-		// Print the TRACEPARENT value
-		fmt.Println("TRACEPARENT:", traceparent)
-	} else {
-		fmt.Println("No trace information found in the context")
-	}
 
 	const interval = time.Second * 15
 	traceLog.Info("Set interval", "interval", interval)
