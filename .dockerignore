@@ -1,7 +1,0 @@
-# More info: https://docs.docker.com/engine/reference/builder/#dockerignore-file
-# Ignore build and test binaries.
-bin/
-testbin/
-!bin/tf-runner
-!bin/tofu-controller
-!bin/branch-planner
