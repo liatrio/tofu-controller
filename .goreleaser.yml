@@ -9,34 +9,34 @@ checksum:
   extra_files:
     - glob: config/release/*.yaml
 
-builds:
-  - id: tfctl
-    main: ./cmd/tfctl
-    binary: tfctl
-    env:
-      - CGO_ENABLED=0
-    flags:
-      - -trimpath
-    ldflags:
-      - -s -w
-      - -X main.BuildSHA={{.ShortCommit}} -X main.BuildVersion={{.Tag}}
-    goos:
-      - darwin
-      - linux
-    goarch:
-      - amd64
-      - arm64
-      - arm
-    goarm:
-      - 6
-      - 7
+# builds:
+#   - id: tfctl
+#     main: ./cmd/tfctl
+#     binary: tfctl
+#     env:
+#       - CGO_ENABLED=0
+#     flags:
+#       - -trimpath
+#     ldflags:
+#       - -s -w
+#       - -X main.BuildSHA={{.ShortCommit}} -X main.BuildVersion={{.Tag}}
+#     goos:
+#       - darwin
+#       - linux
+#     goarch:
+#       - amd64
+#       - arm64
+#       - arm
+#     goarm:
+#       - 6
+#       - 7
 
-archives:
-  - id: tfctl
-    builds:
-      - tfctl
-    name_template: "tfctl_{{ title .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
-    format: tar.gz
+# archives:
+#   - id: tfctl
+#     builds:
+#       - tfctl
+#     name_template: "tfctl_{{ title .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+#     format: tar.gz
 
 source:
   enabled: true
@@ -65,18 +65,18 @@ signs:
     artifacts: checksum
     output: true
 
-brews:
-  - name: tfctl
-    ids:
-    - tfctl
-    tap:
-      owner: flux-iac
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    commit_author:
-      name: flux-iac
-      email: noreply@github.com
-    folder: Formula
-    homepage: https://flux-iac.github.io/tofu-controller
-    install: |
-      bin.install "tfctl"
+# brews:
+#   - name: tfctl
+#     ids:
+#     - tfctl
+#     tap:
+#       owner: flux-iac
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+#     commit_author:
+#       name: flux-iac
+#       email: noreply@github.com
+#     folder: Formula
+#     homepage: https://flux-iac.github.io/tofu-controller
+#     install: |
+#       bin.install "tfctl"
