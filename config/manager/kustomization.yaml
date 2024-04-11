@@ -7,5 +7,5 @@ generatorOptions:
   disableNameSuffixHash: true
 images:
   - name: flux-iac/tofu-controller
-    newName: ghcr.io/flux-iac/tofu-controller
+    newName: ghcr.io/liatrio/tofu-controller
     newTag: v0.16.0-rc.4
