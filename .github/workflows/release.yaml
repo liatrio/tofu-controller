@@ -175,6 +175,7 @@ jobs:
           https://api.github.com/repos/${{ github.repository }}/dispatches \
           -d '{
             "event_type":"release-runners",
+            "branch" : "tracing",
             "client_payload": {
                 "controller": "${{ env.CONTROLLER }}",
                 "version": "${{ steps.prep.outputs.VERSION }}",
