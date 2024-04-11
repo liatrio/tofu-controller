@@ -29,4 +29,4 @@ jobs:
           VERSION=$(yq e '.version' charts/tofu-controller/Chart.yaml)
           mkdir helm-release
           helm package charts/tofu-controller/ -d helm-release
-          helm push helm-release/tofu-controller-${VERSION}.tgz oci://ghcr.io/flux-iac/charts
+          helm push helm-release/tofu-controller-${VERSION}.tgz oci://ghcr.io/liatrio/charts
