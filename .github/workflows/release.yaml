@@ -71,7 +71,7 @@ jobs:
           file: ./Dockerfile
           build-args: |
             LIBCRYPTO_VERSION=${{ env.LIBCRYPTO_VERSION }}
-          platforms: linux/amd64 #,linux/arm64 #,linux/arm/v7
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v7
           tags: |
             ghcr.io/liatrio/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
             ghcr.io/liatrio/${{ env.CONTROLLER }}:latest
@@ -91,7 +91,7 @@ jobs:
           file: ./runner-base.Dockerfile
           build-args: |
             LIBCRYPTO_VERSION=${{ env.LIBCRYPTO_VERSION }}
-          platforms: linux/amd64 #,linux/arm64 #,linux/arm/v7
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v7
           tags: |
             ghcr.io/liatrio/tf-runner:${{ steps.prep.outputs.VERSION }}-base
           labels: |
@@ -109,7 +109,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           file: ./runner.Dockerfile
-          platforms: linux/amd64 #,linux/arm64 #,linux/arm/v7
+          platforms: linux/amd64,linux/arm64 #,linux/arm/v7
           build-args: |
             BASE_IMAGE=ghcr.io/liatrio/tf-runner:${{ steps.prep.outputs.VERSION }}-base
           tags: |
