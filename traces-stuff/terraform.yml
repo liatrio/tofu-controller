@@ -5,9 +5,15 @@ metadata:
   namespace: flux-system
 spec:
   path: ./null/
-  interval: 1m
+  interval: 10m
   approvePlan: auto
   destroyResourcesOnDeletion: true
   sourceRef:
     kind: GitRepository
     name: test
+  runnerPodTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tf-runner
+        app.kubernetes.io/created-by: tf-controller
+

@@ -202,13 +202,21 @@ func (r *TerraformReconciler) runnerPodSpec(terraform infrav1.Terraform, tlsSecr
 		}
 	}
 
-	//adding traceparent env to runner
-	if envValue := os.Getenv("TRACEPARENT"); envValue != "" {
-		envvarsMap["TRACEPARENT"] = v1.EnvVar{
-			Name:  "TRACEPARENT",
-			Value: envValue,
+	for _, envName := range []string{"TRACEPARENT", "OTEL_TRACES_EXPORTER", "OTEL_EXPORTER_OTLP_PROTOCOL", "OTEL_EXPORTER_OTLP_ENDPOINT"} {
+		if envValue := os.Getenv(envName); envValue != "" {
+			envvarsMap[envName] = v1.EnvVar{
+				Name:  envName,
+				Value: envValue,
+			}
 		}
 	}
+	//adding traceparent env to runner
+	// if envValue := os.Getenv("TRACEPARENT"); envValue != "" {
+	// 	envvarsMap["TRACEPARENT"] = v1.EnvVar{
+	// 		Name:  "TRACEPARENT",
+	// 		Value: envValue,
+	// 	}
+	// }
 
 	for _, env := range terraform.Spec.RunnerPodTemplate.Spec.Env {
 		envvarsMap[env.Name] = env
@@ -292,6 +300,10 @@ func (r *TerraformReconciler) runnerPodSpec(terraform infrav1.Terraform, tlsSecr
 					{
 						Name:          "grpc",
 						ContainerPort: int32(r.RunnerGRPCPort),
+					},
+					{
+						Name:          "traces",
+						ContainerPort: int32(4317),
 					},
 				},
 				Env:             envvars,

@@ -23,7 +23,6 @@ func (r *TerraformReconciler) shouldApply(terraform infrav1.Terraform) bool {
 	if terraform.Spec.Force {
 		return true
 	}
-
 	if terraform.Spec.PlanOnly {
 		return false
 	}

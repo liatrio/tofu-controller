@@ -370,6 +370,8 @@ func (r *TerraformRunnerServer) Apply(ctx context.Context, req *ApplyRequest) (*
 		applyOpt = []tfexec.ApplyOption{tfexec.DirOrPlan(req.DirOrPlan)}
 	}
 
+	applyOpt = append(applyOpt, tfexec.Lock(false))
+
 	if req.RefreshBeforeApply {
 		applyOpt = []tfexec.ApplyOption{tfexec.Refresh(true)}
 	}

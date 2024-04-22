@@ -126,6 +126,7 @@ func (r *TerraformRunnerServer) Plan(ctx context.Context, req *PlanRequest) (*Pl
 	if req.Destroy {
 		planOpt = append(planOpt, tfexec.Destroy(req.Destroy))
 	}
+	planOpt = append(planOpt, tfexec.Lock(false))
 
 	if req.LockTimeout != "" {
 		planOpt = append(planOpt, tfexec.LockTimeout(req.LockTimeout))
