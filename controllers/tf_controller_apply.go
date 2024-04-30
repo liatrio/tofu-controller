@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	"go.opentelemetry.io/otel/codes"
 
 	infrav1 "github.com/flux-iac/tofu-controller/api/v1alpha2"
 	"github.com/flux-iac/tofu-controller/runner"
@@ -157,6 +158,7 @@ func (r *TerraformReconciler) apply(ctx context.Context, terraform infrav1.Terra
 				r.event(ctx, terraform, revision, eventv1.EventSeverityError, msg, nil)
 			}
 
+			span.SetStatus(codes.Error, "error running Apply")
 			err = fmt.Errorf("error running Apply: %s", err)
 			return infrav1.TerraformAppliedFailResetPlanAndNotReady(
 				terraform,

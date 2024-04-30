@@ -535,6 +535,7 @@ func (r *TerraformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		terraform := infrav1.TerraformResetRetry(*reconciledTerraform)
 		reconciledTerraform = &terraform
 	} else {
+		span.SetStatus(codes.Error, "reconciliation failed")
 		reconciledTerraform.IncrementReconciliationFailures()
 	}
 

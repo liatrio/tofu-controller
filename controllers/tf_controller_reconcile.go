@@ -26,6 +26,7 @@ import (
 	"github.com/flux-iac/tofu-controller/runner"
 	"github.com/fluxcd/pkg/apis/meta"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	"go.opentelemetry.io/otel/codes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -205,6 +206,7 @@ func (r *TerraformReconciler) reconcile(ctx context.Context, runnerClient runner
 	if r.shouldApply(terraform) {
 		terraform, err = r.apply(ctx, terraform, tfInstance, runnerClient, revision)
 		if err != nil {
+			span.SetStatus(codes.Error, "error applying")
 			log.Error(err, "error applying")
 			return &terraform, err
 		}
