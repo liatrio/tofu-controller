@@ -3,12 +3,12 @@ entries:
   tofu-controller:
   - apiVersion: v2
     appVersion: v0.16.0-rc.4
-    created: "2024-04-22T17:35:40.738181607Z"
+    created: "2024-05-01T17:47:42.053667143Z"
     description: The Helm chart for Weave GitOps Terraform Controller
-    digest: 6225dcd82f4d44b5cd1624f3facfaed9685ba8ab2db75666eb799a4668a61e61
+    digest: 1bd90d2d709778180248f6643194313b346057bbc9b65b7cd56714628e56898f
     name: tofu-controller
     type: application
     urls:
     - https://liatrio.github.io/tofu-controller/tofu-controller-0.16.0-rc.4.tgz
     version: 0.16.0-rc.4
-generated: "2024-04-22T17:35:40.735287152Z"
+generated: "2024-05-01T17:47:42.050206835Z"
