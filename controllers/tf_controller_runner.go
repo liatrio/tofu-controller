@@ -210,21 +210,16 @@ func (r *TerraformReconciler) runnerPodSpec(terraform infrav1.Terraform, tlsSecr
 			}
 		}
 	}
-	// if terraform.GetLabels() != nil {
-	// 	for k, v := range terraform.GetLabels() {
-	// 		if strings.HasPrefix(k, "tracing.attributes/") {
-
-	// 		}
-	// 	}
-
-	// }
-	//adding traceparent env to runner
-	// if envValue := os.Getenv("TRACEPARENT"); envValue != "" {
-	// 	envvarsMap["TRACEPARENT"] = v1.EnvVar{
-	// 		Name:  "TRACEPARENT",
-	// 		Value: envValue,
-	// 	}
-	// }
+	if terraform.GetLabels() != nil {
+		for k, v := range terraform.GetLabels() {
+			if strings.Compare(k, "tracing.attributes/team") == 0 {
+				envvarsMap["TEAM"] = v1.EnvVar{
+					Name:  "TEAM",
+					Value: v,
+				}
+			}
+		}
+	}
 
 	for _, env := range terraform.Spec.RunnerPodTemplate.Spec.Env {
 		envvarsMap[env.Name] = env
