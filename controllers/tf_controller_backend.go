@@ -26,6 +26,8 @@ func (r *TerraformReconciler) backendCompletelyDisable(terraform infrav1.Terrafo
 
 func (r *TerraformReconciler) setupTerraform(ctx context.Context, runnerClient runner.RunnerClient, terraform infrav1.Terraform, sourceObj sourcev1.Source, revision string, objectKey types.NamespacedName, reconciliationLoopID string) (infrav1.Terraform, string, string, error) {
 	log := ctrl.LoggerFrom(ctx)
+	ctx, span := tracer.Start(ctx, "tf_controller_backend.setupTerraform")
+	defer span.End()
 
 	tfInstance := "0"
 	tmpDir := ""
@@ -36,6 +38,7 @@ func (r *TerraformReconciler) setupTerraform(ctx context.Context, runnerClient r
 		return terraform, tfInstance, tmpDir, err
 	}
 
+	log.Info("downloading artifact")
 	// download artifact and extract files
 	buf, err := r.downloadAsBytes(sourceObj.GetArtifact())
 	if err != nil {
@@ -47,6 +50,7 @@ func (r *TerraformReconciler) setupTerraform(ctx context.Context, runnerClient r
 		), tfInstance, tmpDir, err
 	}
 
+	log.Info("upload artifact to runner and extracting files")
 	// we fix timeout of UploadAndExtract to be 30s
 	// ctx30s, cancelCtx30s := context.WithTimeout(ctx, 30*time.Second)
 	// defer cancelCtx30s()
@@ -178,12 +182,13 @@ terraform {
 		tfrcFilepath = processCliConfigReply.FilePath
 	}
 
+	log.Info("finding tofu binary")
 	lookPathReply, err := runnerClient.LookPath(ctx,
 		&runner.LookPathRequest{
-			File: "terraform",
+			File: "tofu",
 		})
 	if err != nil {
-		err = fmt.Errorf("cannot find Terraform binary: %s in %s", err, os.Getenv("PATH"))
+		err = fmt.Errorf("cannot find OpenTofu binary: %s in %s", err, os.Getenv("PATH"))
 		return infrav1.TerraformNotReady(
 			terraform,
 			revision,
@@ -264,6 +269,7 @@ terraform {
 		envs["TF_CLI_CONFIG_FILE"] = tfrcFilepath
 	}
 
+	log.Info("setting env")
 	// SetEnv returns a nil for the first return values if there is an error, so
 	// let's ignore that as it's not used elsewhere.
 	if _, err := runnerClient.SetEnv(ctx,
@@ -308,6 +314,7 @@ terraform {
 		}
 	}
 
+	log.Info("GenerateVarsForTF")
 	generateVarsForTFReply, err := runnerClient.GenerateVarsForTF(ctx, &runner.GenerateVarsForTFRequest{
 		WorkingDir: workingDir,
 	})
@@ -352,6 +359,7 @@ terraform {
 		initRequest.ForceCopy = false
 	}
 
+	log.Info("Init request: " + initRequest.String())
 	initReply, err := runnerClient.Init(ctx, initRequest)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {

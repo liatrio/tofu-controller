@@ -15,7 +15,7 @@ import (
 	tfjson "github.com/hashicorp/terraform-json"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"sigs.k8s.io/controller-runtime"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -126,6 +126,7 @@ func (r *TerraformRunnerServer) Plan(ctx context.Context, req *PlanRequest) (*Pl
 	if req.Destroy {
 		planOpt = append(planOpt, tfexec.Destroy(req.Destroy))
 	}
+	planOpt = append(planOpt, tfexec.Lock(false))
 
 	if req.LockTimeout != "" {
 		planOpt = append(planOpt, tfexec.LockTimeout(req.LockTimeout))

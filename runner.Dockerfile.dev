@@ -37,6 +37,9 @@ RUN unzip -q /terraform_${TF_VERSION}_linux_${TARGETARCH}.zip -d /usr/local/bin/
     rm /terraform_${TF_VERSION}_linux_${TARGETARCH}.zip && \
     chmod +x /usr/local/bin/terraform
 
+# COPY tofu /usr/local/bin/terraform
+# RUN chmod +x /usr/local/bin/terraform
+
 # Switch back to the non-root user after operations
 USER 65532:65532
 

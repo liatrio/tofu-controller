@@ -71,6 +71,11 @@ func runnerPodTemplate(terraform infrav1.Terraform, secretName string, revision 
 
 func (r *TerraformReconciler) LookupOrCreateRunner(ctx context.Context, terraform infrav1.Terraform, revision string) (runner.RunnerClient, func() error, error) {
 	log := ctrl.LoggerFrom(ctx)
+	ctx, span := tracer.Start(ctx, "LookupOrCreateRunner")
+	defer span.End()
+	// span := trace.SpanFromContext(ctx)
+	// span.SetAttributes(attribute.String("function", "TerraformReconciler.LookupOrCreateRunner"))
+	// defer span.End()
 	traceLog := log.V(logger.TraceLevel).WithValues("function", "TerraformReconciler.lookupOrCreateRunner_000")
 	// we have to make sure that the secret is valid before we can create the runner.
 	traceLog.Info("Validate the secret used for the Terraform resource")
@@ -78,6 +83,7 @@ func (r *TerraformReconciler) LookupOrCreateRunner(ctx context.Context, terrafor
 	traceLog.Info("Check for an error")
 	if err != nil {
 		traceLog.Error(err, "Hit an error")
+		span.RecordError(err)
 		return nil, nil, err
 	}
 
@@ -92,6 +98,7 @@ func (r *TerraformReconciler) LookupOrCreateRunner(ctx context.Context, terrafor
 		traceLog.Info("Check for an error")
 		if err != nil {
 			traceLog.Error(err, "Hit an error")
+			span.RecordError(err)
 			return nil, nil, err
 		}
 		traceLog.Info("Get pod coordinates", "pod-ip", podIP, "pod-hostname", terraform.Name)
@@ -126,6 +133,8 @@ func (r *TerraformReconciler) LookupOrCreateRunner(ctx context.Context, terrafor
 func (r *TerraformReconciler) getRunnerConnection(ctx context.Context, tlsSecret *v1.Secret, hostname string, port int) (*grpc.ClientConn, error) {
 	log := ctrl.LoggerFrom(ctx)
 	traceLog := log.V(logger.TraceLevel).WithValues("function", "TerraformReconciler.getRunnerConnection")
+	ctx, span := tracer.Start(ctx, "getRunnerConnection")
+	defer span.End()
 	addr := fmt.Sprintf("%s:%d", hostname, port)
 	traceLog.Info("Set address for target", "addr", addr)
 	traceLog.Info("Get GRPC Credentials")
@@ -189,6 +198,25 @@ func (r *TerraformReconciler) runnerPodSpec(terraform infrav1.Terraform, tlsSecr
 			envvarsMap[envName] = v1.EnvVar{
 				Name:  envName,
 				Value: envValue,
+			}
+		}
+	}
+
+	for _, envName := range []string{"TRACEPARENT", "OTEL_TRACES_EXPORTER", "OTEL_EXPORTER_OTLP_PROTOCOL", "OTEL_EXPORTER_OTLP_ENDPOINT"} {
+		if envValue := os.Getenv(envName); envValue != "" {
+			envvarsMap[envName] = v1.EnvVar{
+				Name:  envName,
+				Value: envValue,
+			}
+		}
+	}
+	if terraform.GetLabels() != nil {
+		for k, v := range terraform.GetLabels() {
+			if strings.Compare(k, "tracing.attributes/team") == 0 {
+				envvarsMap["TEAM"] = v1.EnvVar{
+					Name:  "TEAM",
+					Value: v,
+				}
 			}
 		}
 	}
@@ -276,6 +304,10 @@ func (r *TerraformReconciler) runnerPodSpec(terraform infrav1.Terraform, tlsSecr
 						Name:          "grpc",
 						ContainerPort: int32(r.RunnerGRPCPort),
 					},
+					{
+						Name:          "traces",
+						ContainerPort: int32(4317),
+					},
 				},
 				Env:             envvars,
 				EnvFrom:         terraform.Spec.RunnerPodTemplate.Spec.EnvFrom,
@@ -313,6 +345,13 @@ func (r *TerraformReconciler) reconcileRunnerPod(ctx context.Context, terraform 
 		stateMustBeDeleted state = "must-be-deleted"
 		stateTerminating   state = "terminating"
 	)
+
+	// Attempting to set TRACEPARENT env so that runner spec picks it up
+	// span := trace.SpanFromContext(ctx)
+	// span.SetAttributes(attribute.String("function", "TerraformReconciler.LookupOrCreateRunner.reconcileRunnerPod"))
+	// defer span.End()
+	ctx, span := tracer.Start(ctx, "reconcileRunnerPod")
+	defer span.End()
 
 	const interval = time.Second * 15
 	traceLog.Info("Set interval", "interval", interval)
@@ -407,6 +446,7 @@ func (r *TerraformReconciler) reconcileRunnerPod(ctx context.Context, terraform 
 		traceLog.Info("Check for an error")
 		if err != nil {
 			traceLog.Error(err, "Hit an error")
+			span.RecordError(err)
 			return "", err
 		}
 	case stateMustBeDeleted:
@@ -417,18 +457,21 @@ func (r *TerraformReconciler) reconcileRunnerPod(ctx context.Context, terraform 
 			client.PropagationPolicy(metav1.DeletePropagationForeground),
 		); err != nil {
 			traceLog.Error(err, "Hit an error")
+			span.RecordError(err)
 			return "", err
 		}
 		// wait for pod to be terminated
 		traceLog.Info("Wait for pod to be terminated and check for an error")
 		if err := waitForPodToBeTerminated(); err != nil {
 			traceLog.Error(err, "Hit an error")
+			span.RecordError(err)
 			return "", fmt.Errorf("failed to wait for the old pod termination: %v", err)
 		}
 		// create new pod
 		traceLog.Info("Create a new pod and check for an error")
 		if err := createNewPod(); err != nil {
 			traceLog.Error(err, "Hit an error")
+			span.RecordError(err)
 			return "", err
 		}
 	case stateTerminating:
@@ -436,6 +479,7 @@ func (r *TerraformReconciler) reconcileRunnerPod(ctx context.Context, terraform 
 		traceLog.Info("Check for an error")
 		if err := waitForPodToBeTerminated(); err != nil {
 			traceLog.Error(err, "Hit an error")
+			span.RecordError(err)
 			return "", fmt.Errorf("failed to wait for the old pod termination: %v", err)
 		}
 		// create new pod
@@ -444,6 +488,7 @@ func (r *TerraformReconciler) reconcileRunnerPod(ctx context.Context, terraform 
 		traceLog.Info("Check for an error")
 		if err != nil {
 			traceLog.Error(err, "Hit an error")
+			span.RecordError(err)
 			return "", err
 		}
 	case stateRunning:
@@ -516,7 +561,6 @@ func (r *TerraformReconciler) reconcileRunnerSecret(ctx context.Context, terrafo
 			result.Secret.SetResourceVersion("")
 			result.Secret.SetUID("")
 			result.Secret.SetGeneration(0)
-
 			if err := r.Client.Create(ctx, result.Secret); err != nil {
 				return nil, err
 			}

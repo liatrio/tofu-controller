@@ -30,6 +30,9 @@ func (r *TerraformReconciler) shouldPlan(terraform infrav1.Terraform) bool {
 
 func (r *TerraformReconciler) plan(ctx context.Context, terraform infrav1.Terraform, tfInstance string, runnerClient runner.RunnerClient, revision string, sourceRefRootDir string) (infrav1.Terraform, error) {
 
+	ctx, span := tracer.Start(ctx, "tf_controller_plan.plan")
+	_ = ctx // prevent staticcheck from complaining to avoid a maintenence hazard of having the wrong ctx in scope here
+	defer span.End()
 	log := ctrl.LoggerFrom(ctx)
 
 	log.Info("calling plan ...")

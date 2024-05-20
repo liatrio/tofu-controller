@@ -26,6 +26,8 @@ import (
 	"github.com/flux-iac/tofu-controller/runner"
 	"github.com/fluxcd/pkg/apis/meta"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,6 +35,11 @@ import (
 
 func (r *TerraformReconciler) reconcile(ctx context.Context, runnerClient runner.RunnerClient, terraform infrav1.Terraform, sourceObj sourcev1.Source, reconciliationLoopID string) (*infrav1.Terraform, error) {
 	log := ctrl.LoggerFrom(ctx)
+	ctx, span := tracer.Start(ctx, "tf_controller_reconcile.reconcile")
+	defer span.End()
+	span.SetAttributes(attribute.String("applied", "false"))
+	terraform.Annotations["applied"] = "false"
+
 	revision := sourceObj.GetArtifact().Revision
 	objectKey := types.NamespacedName{Namespace: terraform.Namespace, Name: terraform.Name}
 
@@ -200,8 +207,12 @@ func (r *TerraformReconciler) reconcile(ctx context.Context, runnerClient runner
 
 	// if we should apply the generated plan, do so
 	if r.shouldApply(terraform) {
+		//This is just to mark that an apply was attempted due to drift detection
+		terraform.Annotations["applied"] = "true"
+		span.SetAttributes(attribute.String("applied", "true"))
 		terraform, err = r.apply(ctx, terraform, tfInstance, runnerClient, revision)
 		if err != nil {
+			span.SetStatus(codes.Error, "error applying")
 			log.Error(err, "error applying")
 			return &terraform, err
 		}

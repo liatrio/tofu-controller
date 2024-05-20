@@ -73,8 +73,8 @@ jobs:
             LIBCRYPTO_VERSION=${{ env.LIBCRYPTO_VERSION }}
           platforms: linux/amd64,linux/arm64 #,linux/arm/v7
           tags: |
-            ghcr.io/flux-iac/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
-            ghcr.io/flux-iac/${{ env.CONTROLLER }}:latest
+            ghcr.io/liatrio/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+            ghcr.io/liatrio/${{ env.CONTROLLER }}:latest
           labels: |
             org.opencontainers.image.title=${{ github.event.repository.name }}
             org.opencontainers.image.description=${{ github.event.repository.description }}
@@ -93,7 +93,7 @@ jobs:
             LIBCRYPTO_VERSION=${{ env.LIBCRYPTO_VERSION }}
           platforms: linux/amd64,linux/arm64 #,linux/arm/v7
           tags: |
-            ghcr.io/flux-iac/tf-runner:${{ steps.prep.outputs.VERSION }}-base
+            ghcr.io/liatrio/tf-runner:${{ steps.prep.outputs.VERSION }}-base
           labels: |
             org.opencontainers.image.title=${{ github.event.repository.name }}
             org.opencontainers.image.description=${{ github.event.repository.description }}
@@ -111,10 +111,10 @@ jobs:
           file: ./runner.Dockerfile
           platforms: linux/amd64,linux/arm64 #,linux/arm/v7
           build-args: |
-            BASE_IMAGE=ghcr.io/flux-iac/tf-runner:${{ steps.prep.outputs.VERSION }}-base
+            BASE_IMAGE=ghcr.io/liatrio/tf-runner:${{ steps.prep.outputs.VERSION }}-base
           tags: |
-            ghcr.io/flux-iac/tf-runner:${{ steps.prep.outputs.VERSION }}
-            ghcr.io/flux-iac/tf-runner:latest
+            ghcr.io/liatrio/tf-runner:${{ steps.prep.outputs.VERSION }}
+            ghcr.io/liatrio/tf-runner:latest
           labels: |
             org.opencontainers.image.title=${{ github.event.repository.name }}
             org.opencontainers.image.description=${{ github.event.repository.description }}
@@ -122,79 +122,32 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ steps.prep.outputs.VERSION }}
             org.opencontainers.image.created=${{ steps.prep.outputs.BUILD_DATE }}
-      - name: Publish multi-arch tf-runner-azure container image
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
-        with:
-          push: true
-          no-cache: true
-          builder: ${{ steps.buildx.outputs.name }}
-          context: .
-          file: ./runner-azure.Dockerfile
-          platforms: linux/amd64,linux/arm64 #,linux/arm/v7 - azure-cli does not install correctly on 32 bit arm
-          build-args: |
-            BASE_IMAGE=ghcr.io/flux-iac/tf-runner:${{ steps.prep.outputs.VERSION }}-base
-          tags: |
-            ghcr.io/flux-iac/tf-runner-azure:${{ steps.prep.outputs.VERSION }}
-            ghcr.io/flux-iac/tf-runner-azure:latest
-          labels: |
-            org.opencontainers.image.title=${{ github.event.repository.name }}
-            org.opencontainers.image.description=${{ github.event.repository.description }}
-            org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.prep.outputs.VERSION }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.BUILD_DATE }}
-      - name: Publish multi-arch branch-planner container image
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
-        with:
-          push: true
-          no-cache: true
-          builder: ${{ steps.buildx.outputs.name }}
-          context: .
-          file: ./planner.Dockerfile
-          build-args: |
-            LIBCRYPTO_VERSION=${{ env.LIBCRYPTO_VERSION }}
-          platforms: linux/amd64,linux/arm64 #,linux/arm/v7 - azure-cli does not install correctly on 32 bit arm
-          tags: |
-            ghcr.io/flux-iac/branch-planner:${{ steps.prep.outputs.VERSION }}
-            ghcr.io/flux-iac/branch-planner:latest
-          labels: |
-            org.opencontainers.image.title=${{ github.event.repository.name }}
-            org.opencontainers.image.description=${{ github.event.repository.description }}
-            org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.prep.outputs.VERSION }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.BUILD_DATE }}
+     
       - name: Check images
         run: |
-          docker buildx imagetools inspect ghcr.io/flux-iac/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
-          docker pull ghcr.io/flux-iac/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+          docker buildx imagetools inspect ghcr.io/liatrio/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+          docker pull ghcr.io/liatrio/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
 
-          docker buildx imagetools inspect ghcr.io/flux-iac/tf-runner:${{ steps.prep.outputs.VERSION }}
-          docker pull ghcr.io/flux-iac/tf-runner:${{ steps.prep.outputs.VERSION }}
-
-          docker buildx imagetools inspect ghcr.io/flux-iac/tf-runner-azure:${{ steps.prep.outputs.VERSION }}
-          docker pull ghcr.io/flux-iac/tf-runner-azure:${{ steps.prep.outputs.VERSION }}
-
-          docker buildx imagetools inspect ghcr.io/flux-iac/branch-planner:${{ steps.prep.outputs.VERSION }}
-          docker pull ghcr.io/flux-iac/branch-planner:${{ steps.prep.outputs.VERSION }}
+          docker buildx imagetools inspect ghcr.io/liatrio/tf-runner:${{ steps.prep.outputs.VERSION }}
+          docker pull ghcr.io/liatrio/tf-runner:${{ steps.prep.outputs.VERSION }}
       - name: Sign images
         env:
           COSIGN_EXPERIMENTAL: 1
         run: |
-          cosign sign --yes ghcr.io/flux-iac/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
-          cosign sign --yes ghcr.io/flux-iac/tf-runner:${{ steps.prep.outputs.VERSION }}-base
-          cosign sign --yes ghcr.io/flux-iac/tf-runner:${{ steps.prep.outputs.VERSION }}
-          cosign sign --yes ghcr.io/flux-iac/tf-runner-azure:${{ steps.prep.outputs.VERSION }}
-          cosign sign --yes ghcr.io/flux-iac/branch-planner:${{ steps.prep.outputs.VERSION }}
+          cosign sign --yes ghcr.io/liatrio/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+          cosign sign --yes ghcr.io/liatrio/tf-runner:${{ steps.prep.outputs.VERSION }}-base
+          cosign sign --yes ghcr.io/liatrio/tf-runner:${{ steps.prep.outputs.VERSION }}
+          # cosign sign --yes ghcr.io/liatrio/tf-runner-azure:${{ steps.prep.outputs.VERSION }}
+          # cosign sign --yes ghcr.io/liatrio/branch-planner:${{ steps.prep.outputs.VERSION }}
       - name: Generate release manifests
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -p config/release
           kustomize build ./config/crd > ./config/release/${{ env.CONTROLLER }}.crds.yaml
           kustomize build ./config/rbac > ./config/release/${{ env.CONTROLLER }}.rbac.yaml
-          kustomize build ./config/manager | yq e '.spec.template.spec.containers[0].env[1].value="ghcr.io/flux-iac/tf-runner:${{ steps.prep.outputs.VERSION }}"' - > ./config/release/${{ env.CONTROLLER }}.deployment.yaml
+          kustomize build ./config/manager | yq e '.spec.template.spec.containers[0].env[1].value="ghcr.io/liatrio/tf-runner:${{ steps.prep.outputs.VERSION }}"' - > ./config/release/${{ env.CONTROLLER }}.deployment.yaml
           kustomize build ./config/package > ./config/release/${{ env.CONTROLLER }}.packages.yaml
-          echo '[CHANGELOG](https://github.com/flux-iac/${{ env.CONTROLLER }}/blob/main/CHANGELOG.md)' > ./config/release/notes.md
+          echo '[CHANGELOG](https://github.com/liatrio/${{ env.CONTROLLER }}/blob/main/CHANGELOG.md)' > ./config/release/notes.md
       - name: Setup Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
@@ -207,24 +160,29 @@ jobs:
           args: release --release-notes=./config/release/notes.md --skip-validate
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.TF_CONTROLLER_WEAVEWORKSBOT }}
+          # HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.TF_CONTROLLER_WEAVEWORKSBOT }}
       - name: Publish Helm chart
         uses: stefanprodan/helm-gh-pages@0ad2bb377311d61ac04ad9eb6f252fb68e207260 # v1.7.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Trigger the release-runners workflow
         run: |
-          curl -XPOST -u "${{ secrets.GITHUB_TOKEN }}:" \
-            -H "Accept: application/vnd.github.everest-preview+json" \
-            "https://api.github.com/repos/${{ github.repository }}/dispatches" \
-            -d '{
-            "event_type": "release-runners",
+          curl -L \
+          -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          https://api.github.com/repos/${{ github.repository }}/dispatches \
+          -d '{
+            "event_type":"release-runners",
+            "branch" : "tracing",
             "client_payload": {
-              "controller": "${{ env.CONTROLLER }}",
-              "version": "${{ steps.prep.outputs.VERSION }}",
-              "build_date": "${{ steps.prep.outputs.BUILD_DATE }}",
-              "sha": "${{ github.sha }}",
-              "repo_desc": "${{ github.event.repository.description }}",
-              "repo_url": "${{ github.event.repository.html_url }}"
-            }
-          }'
+                "controller": "${{ env.CONTROLLER }}",
+                "version": "${{ steps.prep.outputs.VERSION }}",
+                "build_date": "${{ steps.prep.outputs.BUILD_DATE }}",
+                "sha": "${{ github.sha }}",
+                "repo_desc": "${{ github.event.repository.description }}",
+                "repo_url": "${{ github.event.repository.html_url }}"
+              }
+            }'
+
