@@ -44,6 +44,7 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -528,6 +529,7 @@ func (r *TerraformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// reconcile Terraform by applying the latest revision
 	traceLog.Info("Run reconcile for the Terraform resource")
 	reconciledTerraform, reconcileErr := r.reconcile(ctx, runnerClient, *terraform.DeepCopy(), sourceObj, reconciliationLoopID)
+	span.SetAttributes(attribute.String("applied", reconciledTerraform.Annotations["applied"]))
 
 	// Check remediation.
 	if reconcileErr == nil {

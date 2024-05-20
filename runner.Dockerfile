@@ -1,7 +1,7 @@
 ARG BASE_IMAGE
 FROM $BASE_IMAGE
 
-ARG TOFU_VERSION=0.1.5
+ARG TOFU_VERSION=0.1.6
 
 # Switch to root to have permissions for operations
 USER root
